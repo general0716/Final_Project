@@ -3,6 +3,12 @@ import random
 
 class Match3Game:
     def __init__(self, root, rows=8, cols=8, cell_size=40, colors=None):
+        self.level = 1
+        self.level_goal = 300
+        self.time_left = 150  # 初始时间更长
+        self.level_complete_button = None  # 按钮容器
+        self.level_complete_label = None
+
         self.root = root
         self.rows = rows
         self.cols = cols
@@ -31,7 +37,7 @@ class Match3Game:
                     self.board[r][c] = gem
                     break
 
-        self.label = tk.Label(root, text="Score: 0 | Time left: 120s | High Score: 0")
+        self.label = tk.Label(root, text="Score: 0 | Time left: 120s | Level: 1 | Goal: 100")
         self.label.pack(pady=5)
         canvas_width = cols * cell_size
         canvas_height = rows * cell_size
@@ -61,22 +67,26 @@ class Match3Game:
             x1 = (sc + 1) * self.cell_size
             y1 = (sr + 1) * self.cell_size
             self.canvas.create_rectangle(x0, y0, x1, y1, outline="yellow", width=3)
-        self.label.config(text=f"Score: {self.score} | Time left: {self.time_left}s | High Score: {self.high_score}")
+        self.label.config(
+            text=f"Score: {self.score} | Time left: {self.time_left}s | Level: {self.level} | Goal: {self.level_goal}")
 
     def update_timer(self):
-        if self.time_left > 0:
-            self.time_left -= 1
-            self.label.config(text=f"Score: {self.score} | Time left: {self.time_left}s | High Score: {self.high_score}")
+        # 如果已经通关了（time_left 被设为 -1），则不要继续计时
+        if self.time_left <= 0:
+            if self.level_complete_button is None:
+                # 没有通关，只是时间到了
+                self.in_action = True
+                self.canvas.unbind("<Button-1>")
+                self.label.config(text=f"Game Over! Final Score: {self.score}")
+                self.restart_button = tk.Button(self.root, text="Play Again", command=self.restart_game)
+                self.restart_button.pack(pady=10)
+            return  # 无论哪种情况，终止后续计时
 
-            self.root.after(1000, self.update_timer)
-        else:
-            self.in_action = True
-            self.canvas.unbind("<Button-1>")
-            if self.score > self.high_score:
-                self.high_score = self.score
-            self.label.config(text=f"Time's up! Final Score: {self.score} | High Score: {self.high_score}")
-            self.restart_button = tk.Button(self.root, text="Play Again", command=self.restart_game)
-            self.restart_button.pack(pady=10)
+        # 正常倒计时进行
+        self.time_left -= 1
+        self.label.config(
+            text=f"Score: {self.score} | Time left: {self.time_left}s | Level: {self.level} | Goal: {self.level_goal}")
+        self.root.after(1000, self.update_timer)
 
     def on_canvas_click(self, event):
         if self.in_action:
@@ -145,12 +155,58 @@ class Match3Game:
                 r = i
         return matches
 
+    def advance_level(self):
+        if self.level_complete_button:
+            self.level_complete_button.destroy()
+            self.level_complete_button = None
+
+        if self.level_complete_label:
+            self.level_complete_label.destroy()
+            self.level_complete_label = None
+
+        self.level += 1
+        self.level_goal += 200  # 每关目标提升
+        self.time_left = 150
+        self.score = 0  # 新关卡重新计分
+        self.selected = None
+        self.in_action = False
+
+        for r in range(self.rows):
+            for c in range(self.cols):
+                while True:
+                    gem = random.choice(self.colors)
+                    if c >= 2 and gem == self.board[r][c - 1] == self.board[r][c - 2]:
+                        continue
+                    if r >= 2 and gem == self.board[r - 1][c] == self.board[r - 2][c]:
+                        continue
+                    self.board[r][c] = gem
+                    break
+
+        self.canvas.bind("<Button-1>", self.on_canvas_click)
+        self.draw_board()
+        self.update_timer()
+
     def remove_matches_and_continue(self, matches):
         for (r, c) in matches:
             self.board[r][c] = None
         self.score += len(matches) * 10
         self.draw_board()
         self.root.after(200, self.drop_gems)
+        # 若已达目标分数，且按钮未创建，则创建按钮并停止计时
+        if self.score >= self.level_goal:
+            if self.level_complete_button is None:
+                self.in_action = True
+                self.canvas.unbind("<Button-1>")
+
+                # 🔸 添加醒目的通关提示标签
+                self.level_complete_label = tk.Label(self.root, text="🎉 Congratulations! Level Complete! 🎉",
+                                                     font=("Helvetica", 18, "bold"), fg="green")
+                self.level_complete_label.pack(pady=10)
+
+                self.level_complete_button = tk.Button(self.root, text="Next Level ▶", command=self.advance_level)
+                self.level_complete_button.pack(pady=10)
+                self.time_left = -1  # 停止计时
+            return
 
     def drop_gems(self):
         moved = False
@@ -175,13 +231,15 @@ class Match3Game:
             else:
                 self.in_action = False
 
+
     def restart_game(self):
         self.score = 0
-        self.time_left = 120
+        self.level = 1
+        self.level_goal = 300
+        self.time_left = 150
         self.selected = None
         self.in_action = False
 
-        # 清除游戏板
         for r in range(self.rows):
             for c in range(self.cols):
                 while True:
@@ -198,9 +256,13 @@ class Match3Game:
         if self.restart_button:
             self.restart_button.destroy()
             self.restart_button = None
+        if self.level_complete_button:
+            self.level_complete_button.destroy()
+            self.level_complete_button = None
 
         self.draw_board()
         self.update_timer()
+
 
 if __name__ == "__main__":
     root = tk.Tk()
