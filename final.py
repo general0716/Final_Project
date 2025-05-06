@@ -1,9 +1,15 @@
 import tkinter as tk
 import random
+import sys
+
+# Global exception hook for unexpected errors
+def global_exception_handler(exctype, value, traceback):
+    print("🔴 Unhandled Exception:", value)
+
+sys.excepthook = global_exception_handler
 
 class Match3Game:
     def __init__(self, root, rows=8, cols=8, cell_size=40):
-        # Initialize game parameters
         self.root = root
         self.rows = rows
         self.cols = cols
@@ -11,7 +17,6 @@ class Match3Game:
         self.colors = ["red", "green", "blue", "yellow", "purple", "orange"]
         self.obstacle_color = "gray"
 
-        # Game state variables
         self.level = 1
         self.level_goal = 300
         self.time_left = 150
@@ -21,10 +26,8 @@ class Match3Game:
         self.hints_left = 3
         self.hint_cells = []
 
-        # Create game board (2D list)
         self.board = [[None] * self.cols for _ in range(self.rows)]
 
-        # UI setup
         self.label = tk.Label(root)
         self.label.pack(pady=5)
         self.canvas = tk.Canvas(root, width=self.cols*cell_size, height=self.rows*cell_size, bg="white")
@@ -36,35 +39,35 @@ class Match3Game:
         self.level_complete_button = None
         self.restart_button = None
 
-        # Start game
         self.initialize_board()
         self.draw_board()
         self.update_timer()
 
     def initialize_board(self):
-        """Initializes the game board with random colored gems and inserts obstacles from level 3 onward."""
-        for r in range(self.rows):
-            for c in range(self.cols):
-                self.board[r][c] = random.choice(self.colors)
-        if self.level >= 3:
-            count = min(self.level, self.rows * self.cols)
-            placed = 0
-            while placed < count:
-                r = random.randint(0, self.rows - 1)
-                c = random.randint(0, self.cols - 1)
-                if self.board[r][c] != self.obstacle_color:
-                    self.board[r][c] = self.obstacle_color
-                    placed += 1
-        while True:
-            matches = self.find_matches()
-            if not matches:
-                break
-            for r, c in matches:
-                if self.board[r][c] != self.obstacle_color:
+        try:
+            for r in range(self.rows):
+                for c in range(self.cols):
                     self.board[r][c] = random.choice(self.colors)
+            if self.level >= 3:
+                count = min(self.level, self.rows * self.cols)
+                placed = 0
+                while placed < count:
+                    r = random.randint(0, self.rows - 1)
+                    c = random.randint(0, self.cols - 1)
+                    if self.board[r][c] != self.obstacle_color:
+                        self.board[r][c] = self.obstacle_color
+                        placed += 1
+            while True:
+                matches = self.find_matches()
+                if not matches:
+                    break
+                for r, c in matches:
+                    if self.board[r][c] != self.obstacle_color:
+                        self.board[r][c] = random.choice(self.colors)
+        except Exception as e:
+            print(f"[Init Error] Failed to initialize board: {e}")
 
     def draw_board(self):
-        """Renders the current state of the board on the canvas."""
         self.canvas.delete("all")
         for r in range(self.rows):
             for c in range(self.cols):
@@ -94,7 +97,6 @@ class Match3Game:
         )
 
     def update_timer(self):
-        """Decreases time_left each second and ends the game if time runs out."""
         if self.time_left <= 0:
             if self.level_complete_button is None:
                 self.in_action = True
@@ -108,43 +110,47 @@ class Match3Game:
         self.root.after(1000, self.update_timer)
 
     def on_canvas_click(self, event):
-        """Handles tile selection and swapping on canvas click."""
         if self.in_action:
             return
-        col = event.x // self.cell_size
-        row = event.y // self.cell_size
-        if not (0 <= row < self.rows and 0 <= col < self.cols):
-            return
-        if self.board[row][col] == self.obstacle_color:
-            return
-        if self.selected is None:
-            self.selected = (row, col)
-            self.hint_cells = []
-            self.draw_board()
-        else:
-            sr, sc = self.selected
-            if (row, col) == (sr, sc):
-                self.selected = None
-                self.draw_board()
-            elif abs(sr - row) + abs(sc - col) == 1 and self.board[row][col] != self.obstacle_color:
-                self.in_action = True
-                self.selected = None
-                self.board[sr][sc], self.board[row][col] = self.board[row][col], self.board[sr][sc]
-                self.draw_board()
-                matches = self.find_matches()
-                if matches:
-                    self.root.after(100, self.remove_matches_and_continue, matches)
-                else:
-                    self.root.after(300, self.swap_back, sr, sc, row, col)
-            else:
+        try:
+            col = event.x // self.cell_size
+            row = event.y // self.cell_size
+            if not (0 <= row < self.rows and 0 <= col < self.cols):
+                return
+            if self.board[row][col] == self.obstacle_color:
+                return
+            if self.selected is None:
                 self.selected = (row, col)
+                self.hint_cells = []
                 self.draw_board()
+            else:
+                sr, sc = self.selected
+                if (row, col) == (sr, sc):
+                    self.selected = None
+                    self.draw_board()
+                elif abs(sr - row) + abs(sc - col) == 1 and self.board[row][col] != self.obstacle_color:
+                    self.in_action = True
+                    self.selected = None
+                    self.board[sr][sc], self.board[row][col] = self.board[row][col], self.board[sr][sc]
+                    self.draw_board()
+                    matches = self.find_matches()
+                    if matches:
+                        self.root.after(100, self.remove_matches_and_continue, matches)
+                    else:
+                        self.root.after(300, self.swap_back, sr, sc, row, col)
+                else:
+                    self.selected = (row, col)
+                    self.draw_board()
+        except Exception as e:
+            print(f"[Click Error] {e}")
 
     def swap_back(self, r1, c1, r2, c2):
-        """Swaps two tiles back if the move didn’t result in a match."""
-        self.board[r1][c1], self.board[r2][c2] = self.board[r2][c2], self.board[r1][c1]
-        self.in_action = False
-        self.draw_board()
+        try:
+            self.board[r1][c1], self.board[r2][c2] = self.board[r2][c2], self.board[r1][c1]
+            self.in_action = False
+            self.draw_board()
+        except IndexError as e:
+            print(f"[Swap Back Error] Invalid indices: {e}")
 
     def find_matches(self):
         """Finds and returns all matching tiles of 3 or more, and registers bonus effects."""
@@ -202,21 +208,24 @@ class Match3Game:
         for br, bc, bonus_type in self.bonus_matches:
             if bonus_type == 'horizontal':
                 for col in range(self.cols):
-                    if self.board[br][col] != self.obstacle_color:
+                    if self.board[br][col] not in (None, self.obstacle_color):
                         self.board[br][col] = None
             elif bonus_type == 'vertical':
                 for row in range(self.rows):
-                    if self.board[row][bc] != self.obstacle_color:
+                    if self.board[row][bc] not in (None, self.obstacle_color):
                         self.board[row][bc] = None
             elif bonus_type == 'bomb':
                 for dr in [-1, 0, 1]:
                     for dc in [-1, 0, 1]:
                         nr, nc = br + dr, bc + dc
                         if 0 <= nr < self.rows and 0 <= nc < self.cols:
-                            if self.board[nr][nc] != self.obstacle_color:
+                            if self.board[nr][nc] not in (None, self.obstacle_color):
                                 self.board[nr][nc] = None
+
         for r, c in matches:
             if self.board[r][c] != self.obstacle_color:
+                self.board[r][c] = None
+            if self.board[r][c] not in (None, self.obstacle_color):
                 self.board[r][c] = None
         self.score += len(matches) * 10 + len(self.bonus_matches) * 30
         self.draw_board()
