@@ -84,4 +84,11 @@ The game interface is shown below：
 ![image](https://github.com/user-attachments/assets/1311c65c-dadb-41fd-a340-960b53a2c846)
 
 
+##  Contributors
+
+- Zhiqian Zhang – Responsible for the core game logic and overall system architecture.
+
+- Yansheng Liu – Focused on gameplay improvements, including bonus mechanics, unit testing, and robust error handling.
+
+
 
