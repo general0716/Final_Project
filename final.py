@@ -3,6 +3,7 @@ import random
 
 class Match3Game:
     def __init__(self, root, rows=8, cols=8, cell_size=40):
+        # Initialize game parameters
         self.root = root
         self.rows = rows
         self.cols = cols
@@ -10,6 +11,7 @@ class Match3Game:
         self.colors = ["red", "green", "blue", "yellow", "purple", "orange"]
         self.obstacle_color = "gray"
 
+        # Game state variables
         self.level = 1
         self.level_goal = 300
         self.time_left = 150
@@ -19,8 +21,10 @@ class Match3Game:
         self.hints_left = 3
         self.hint_cells = []
 
+        # Create game board (2D list)
         self.board = [[None] * self.cols for _ in range(self.rows)]
 
+        # UI setup
         self.label = tk.Label(root)
         self.label.pack(pady=5)
         self.canvas = tk.Canvas(root, width=self.cols*cell_size, height=self.rows*cell_size, bg="white")
@@ -32,11 +36,13 @@ class Match3Game:
         self.level_complete_button = None
         self.restart_button = None
 
+        # Start game
         self.initialize_board()
         self.draw_board()
         self.update_timer()
 
     def initialize_board(self):
+        """Initializes the game board with random colored gems and inserts obstacles from level 3 onward."""
         for r in range(self.rows):
             for c in range(self.cols):
                 self.board[r][c] = random.choice(self.colors)
@@ -58,6 +64,7 @@ class Match3Game:
                     self.board[r][c] = random.choice(self.colors)
 
     def draw_board(self):
+        """Renders the current state of the board on the canvas."""
         self.canvas.delete("all")
         for r in range(self.rows):
             for c in range(self.cols):
@@ -87,6 +94,7 @@ class Match3Game:
         )
 
     def update_timer(self):
+        """Decreases time_left each second and ends the game if time runs out."""
         if self.time_left <= 0:
             if self.level_complete_button is None:
                 self.in_action = True
@@ -100,6 +108,7 @@ class Match3Game:
         self.root.after(1000, self.update_timer)
 
     def on_canvas_click(self, event):
+        """Handles tile selection and swapping on canvas click."""
         if self.in_action:
             return
         col = event.x // self.cell_size
@@ -132,57 +141,64 @@ class Match3Game:
                 self.draw_board()
 
     def swap_back(self, r1, c1, r2, c2):
+        """Swaps two tiles back if the move didn’t result in a match."""
         self.board[r1][c1], self.board[r2][c2] = self.board[r2][c2], self.board[r1][c1]
         self.in_action = False
         self.draw_board()
 
     def find_matches(self):
-        self.bonus_matches = []  # Track bonus-eligible matches
+        """Finds and returns all matching tiles of 3 or more, and registers bonus effects."""
+        self.bonus_matches = []
         matches = set()
+
+        # Horizontal match detection
         for r in range(self.rows):
-            for c in range(self.cols - 2):
+            c = 0
+            while c < self.cols - 2:
                 if self.board[r][c] in [None, self.obstacle_color]:
-                    continue
-                run = [c]
-                while c + 1 < self.cols and self.board[r][c] == self.board[r][c + 1] and self.board[r][c + 1] != self.obstacle_color:
-                    run.append(c + 1)
                     c += 1
-                if len(run) >= 3:
-                    matches.update((y, c) for y in run)
-                    if len(run) == 4:
-                        self.bonus_matches.append((run[0], c, 'vertical'))
-                    elif len(run) >= 5:
-                        self.bonus_matches.append((run[0], c, 'bomb'))
-                    matches.update((r, x) for x in run)
-                    if len(run) == 4:
-                        self.bonus_matches.append((r, run[0], 'horizontal'))
-                    elif len(run) >= 5:
-                        self.bonus_matches.append((r, run[0], 'bomb'))
-                    matches.update((r, x) for x in run)
-        for c in range(self.cols):
-            for r in range(self.rows - 2):
-                if self.board[r][c] in [None, self.obstacle_color]:
                     continue
-                run = [r]
-                while r + 1 < self.rows and self.board[r][c] == self.board[r + 1][c] and self.board[r + 1][c] != self.obstacle_color:
-                    run.append(r + 1)
-                    r += 1
+                run_color = self.board[r][c]
+                run = [c]
+                j = c + 1
+                while j < self.cols and self.board[r][j] == run_color:
+                    run.append(j)
+                    j += 1
                 if len(run) >= 3:
-                    matches.update((y, c) for y in run)
+                    for x in run:
+                        matches.add((r, x))  # Add matched cells for removal
                     if len(run) == 4:
-                        self.bonus_matches.append((run[0], c, 'vertical'))
+                        self.bonus_matches.append((r, run[1], 'horizontal'))  # Mid-point bonus
                     elif len(run) >= 5:
-                        self.bonus_matches.append((run[0], c, 'bomb'))
-                    matches.update((r, x) for x in run)
+                        self.bonus_matches.append((r, run[2], 'bomb'))
+                c = j
+
+        # Vertical match detection
+        for c in range(self.cols):
+            r = 0
+            while r < self.rows - 2:
+                if self.board[r][c] in [None, self.obstacle_color]:
+                    r += 1
+                    continue
+                run_color = self.board[r][c]
+                run = [r]
+                i = r + 1
+                while i < self.rows and self.board[i][c] == run_color:
+                    run.append(i)
+                    i += 1
+                if len(run) >= 3:
+                    for y in run:
+                        matches.add((y, c))  # Add matched cells for removal
                     if len(run) == 4:
-                        self.bonus_matches.append((r, run[0], 'horizontal'))
+                        self.bonus_matches.append((run[1], c, 'vertical'))
                     elif len(run) >= 5:
-                        self.bonus_matches.append((r, run[0], 'bomb'))
-                    matches.update((y, c) for y in run)
+                        self.bonus_matches.append((run[2], c, 'bomb'))
+                r = i
+
         return matches
 
     def remove_matches_and_continue(self, matches):
-        # Place bonus blocks before removing
+        """Removes all matched tiles and applies bonus effects before continuing."""
         for br, bc, bonus_type in self.bonus_matches:
             if bonus_type == 'horizontal':
                 for col in range(self.cols):
@@ -207,6 +223,7 @@ class Match3Game:
         self.root.after(200, self.drop_gems)
 
     def drop_gems(self):
+        """Makes gems fall into empty spaces and generates new ones at the top."""
         moved = False
         for c in range(self.cols):
             for r in range(self.rows - 2, -1, -1):
@@ -217,9 +234,7 @@ class Match3Game:
                         self.board[rr][c] = None
                         rr += 1
                         moved = True
-
-        # Repeat filling None cells until board is full (in case obstacles block upper cells)
-        filled = False
+        # Fill empty spots
         while True:
             filled = False
             for c in range(self.cols):
@@ -229,11 +244,11 @@ class Match3Game:
                         filled = True
             if not any(self.board[r][c] is None for r in range(self.rows) for c in range(self.cols)):
                 break
-
         self.draw_board()
         self.root.after(100, self.check_post_drop_matches)
 
     def check_post_drop_matches(self):
+        """Checks for matches after a drop and proceeds accordingly."""
         matches = self.find_matches()
         if matches:
             self.root.after(100, self.remove_matches_and_continue, matches)
@@ -248,6 +263,7 @@ class Match3Game:
             self.in_action = False
 
     def advance_level(self):
+        """Advances to the next level with updated parameters."""
         if self.level_complete_button:
             self.level_complete_button.destroy()
             self.level_complete_button = None
@@ -264,6 +280,7 @@ class Match3Game:
         self.update_timer()
 
     def restart_game(self):
+        """Resets the game to its initial state."""
         if self.restart_button:
             self.restart_button.destroy()
         self.level = 1
@@ -279,6 +296,7 @@ class Match3Game:
         self.update_timer()
 
     def show_hint(self):
+        """Provides a hint by highlighting a possible move."""
         if self.hints_left <= 0 or self.in_action:
             return
         for r in range(self.rows):
