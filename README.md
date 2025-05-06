@@ -80,6 +80,7 @@ Clicking the **Hint** button will show a valid swap with a blue highlight. You s
 - Code has been thoroughly tested for match logic, edge cases, and level transitions
 
 The game interface is shown below：
+
 ![image](https://github.com/user-attachments/assets/1311c65c-dadb-41fd-a340-960b53a2c846)
 
 
