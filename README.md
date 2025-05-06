@@ -79,16 +79,8 @@ Clicking the **Hint** button will show a valid swap with a blue highlight. You s
 - Fully GUI-based, cross-platform
 - Code has been thoroughly tested for match logic, edge cases, and level transitions
 
----
+The game interface is shown below：
+![image](https://github.com/user-attachments/assets/1311c65c-dadb-41fd-a340-960b53a2c846)
 
-##  External Code
 
-No external code or libraries were used. All logic was written from scratch. If any web references (e.g. Stack Overflow) were consulted, they were only for syntax clarification or behavior confirmation.
 
----
-
-##  Author Notes
-
-This game was created over several days and contains over 500 lines of original code. It includes multiple mechanics and interactive GUI features. It is **not** derived from any prior class assignment and cannot be reasonably recreated in a single day.
-
-If you use this code or build on it, credit is appreciated.
